@@ -4,12 +4,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Prediction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Upload an Image for Prediction</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
-        <button type="submit">Upload and Predict</button>
-    </form>
+    <div class="container">
+        <h1>Image Prediction App</h1>
+        <form id="upload-form">
+            <input type="file" id="image-input" accept="image/*" required />
+            <button type="submit">Upload and Predict</button>
+        </form>
+        <div class="result" id="result" style="display: none;">
+            <h2>Prediction Result</h2>
+            <p id="label"></p>
+            <p id="confidence"></p>
+            <img id="predicted-image" class="image-preview" src="" alt="Predicted Image">
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const imageInput = document.getElementById('image-input').files[0];
+            if (!imageInput) {
+                alert("Please upload an image.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", imageInput);
+
+            // Call the API
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('label').innerText = `Label: ${result.label}`;
+                document.getElementById('confidence').innerText = `Confidence: ${result.confidence}`;
+                document.getElementById('predicted-image').src = result.predicted_image_url;
+            } else {
+                alert("Prediction failed. Please try again.");
+            }
+        });
+    </script>
 </body>
 </html>

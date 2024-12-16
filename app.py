@@ -1,46 +1,58 @@
 import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
-from model.model1 import predict_image_class, train_generator  # Import the predict function and class labels from model.py
-from requests import request
+from model.model1 import predict_image_class, train_generator  # Import functions from model.py
 
-# Initialize the FastAPI app
+# Initialize FastAPI app
 app = FastAPI()
 
 # Define paths and settings
-UPLOAD_FOLDER = 'uploads'  # Folder to store uploaded images
-PREDICTED_FOLDER = 'predicted_images'  # Folder to save predicted images
-MODEL_PATH = 'trained_lung_cancer_model.h5'  # Path to the trained model
-CLASS_LABELS = list(train_generator.class_indices.keys())  # Class labels from the model
+UPLOAD_FOLDER = "uploads"
+PREDICTED_FOLDER = "static/predicted_images"
+MODEL_PATH = "trained_lung_cancer_model.h5"
+CLASS_LABELS = list(train_generator.class_indices.keys())
 
-# Ensure the directories exist
+# Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PREDICTED_FOLDER, exist_ok=True)
 
-# Jinja2 Templates
+# Static file serving and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/")
+async def main(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    if file is None:
-        raise HTTPException(status_code=400, detail="No file part in the request")
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded.")
 
-    # Save the uploaded file
+    # Save the uploaded image
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     with open(file_path, "wb") as f:
         f.write(await file.read())
-    
-    # Predict and save the result using the imported `predict_image_class` function
+
+    # Predict and save the result using `predict_image_class`
     predicted_label, confidence_score = predict_image_class(
         img_path=file_path,
         model_path=MODEL_PATH,
         class_labels=CLASS_LABELS,
-        save_directory=PREDICTED_FOLDER
+        save_directory=PREDICTED_FOLDER,
     )
-    
-    # Predicted image path
-    predicted_image_path = os.path.join(PREDICTED_FOLDER, os.path.basename(file_path))
-    
+
+    # Predicted image path (served through /static)
+    predicted_image_path = f"/static/predicted_images/{os.path.basename(file_path)}"
+
+    # Return results
+    return {
+        "label": predicted_label,
+        "confidence": confidence_score,
+        "predicted_image_url": predicted_image_path,
+    }
