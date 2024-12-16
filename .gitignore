@@ -1,2 +1,4 @@
 Data/
 best_model.weights.h5
+.venv/
+*__pycache__
